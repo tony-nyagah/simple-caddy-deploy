@@ -1,18 +1,28 @@
 FROM node:22-alpine
 
-ADD package.json /tmp/package.json
+WORKDIR /app
 
-RUN rm -rf dist
+# Set pnpm store directory
+ENV PNPM_HOME="/root/.local/share/pnpm"
+ENV PATH="${PATH}:${PNPM_HOME}"
 
-RUN corepack enable && corepack prepare pnpm@latest --activate
+# Copy package files
+COPY package.json pnpm-lock.yaml ./
 
-RUN cd /tmp && pnpm install -q
+# Install dependencies including serve
+RUN corepack enable && \
+    corepack prepare pnpm@latest --activate && \
+    pnpm install && \
+    pnpm add serve
 
-ADD ./ /src
-RUN rm -rf /src/node_modules && cp -a /tmp/node_modules /src/
+# Copy source files
+COPY . .
 
-WORKDIR /src
-
+# Build the app
 RUN pnpm run build
 
-CMD ["node", "dist/index.js"]
+# Expose the port the app runs on
+EXPOSE 4000
+
+# Serve the static files from dist directory using local serve
+CMD ["./node_modules/.bin/serve", "-s", "dist", "-l", "4000"]
